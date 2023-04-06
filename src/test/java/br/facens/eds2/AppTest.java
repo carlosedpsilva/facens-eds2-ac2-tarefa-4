@@ -27,4 +27,22 @@ public class AppTest {
         assertEquals(1, aluno.getCursosDisponiveisParaCompra());
     }
 
+    @Test
+    @DisplayName("DADO que o aluno escreveu 2 ou mais tópicos"
+            + "E recebeu 5 ou mais curtidas em comentarios em topicos de outros alunos"
+            + "E não há mais cursos disponíveis na plataforma para compra"
+            + "QUANDO o mês termina"
+            + "ENTÃO não ganha o direito de comprar mais um curso")
+    public void alunoEscreveu2OuMaisTopicosERecebeu5OuMaisCurtidasEmComentariosENaoHaMaisCursosDisponiveisNaPlataformaQuandoMesTerminaEntaoEleNaoGanhaDireitoDeComprarMaisUmCurso() {
+        Aluno aluno = new Aluno();
+        aluno.setTopicosEscritos(2);
+        aluno.setCurtidasRecebidas(5);
+        aluno.setCursosComprados(10);
+        aluno.setCursosDisponiveisParaCompra(0);
+
+        aluno.verificarElegibilidadeParaCurso(CURSOS_DISPONIVEIS_NA_PLATAFORMA);
+
+        assertEquals(0, aluno.getCursosDisponiveisParaCompra());
+    }
+
 }
