@@ -1,0 +1,101 @@
+name: pipeline-ci-hml
+
+on:
+  push:
+    branches:
+      - snapshot
+
+jobs:
+  build:
+    permissions: write-all
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        java-version: [11]
+
+    steps:
+      # ------------------------------------------------------------------------
+      # SECTION: Set-up and Build
+
+      # Checkout the repo
+      - name: 'Set-up: Checkout'
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      # Setup JDK 11
+      - name: 'Set-up: JDK ${{ matrix.java-version }}'
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: "adopt"
+
+      # Build
+      - name: 'Build: Maven'
+        run: mvn -B package --file pom.xml
+
+      # !SECTION ---------------------------------------------------------------
+      # SECTION: Docker steps
+
+      # Docker Login
+      - name: 'Docker: Login'
+        uses: docker/login-action@v2.1.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Docker Setup QEMU
+      - name: 'Docker: Setup QEMU'
+        uses: docker/setup-qemu-action@v2.1.0
+
+      - name: 'Docker: Setup Buildx'
+        uses: docker/setup-buildx-action@v2.5.0
+
+      # Docker Build
+      - name: 'Docker: Build and push Docker images'
+        uses: docker/build-push-action@v4.0.0
+        with:
+          push: true
+          tags: |
+            vaaaarlos/facens-eds2-ac2-tarefa-4-hml:latest
+            vaaaarlos/facens-eds2-ac2-tarefa-4-hml:${{ github.sha }}
+
+      # !SECTION ---------------------------------------------------------------
+      # SECTION: Deploy (Using Dockerfile)
+
+      # Deploy to Render
+      - name: 'Deploy: Render Deploy'
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: srv-choh7lak728ivvt00tqg # homol
+          api-key: ${{ secrets.RENDER_API_KEY }}
+
+      # Wait for Render Deployment
+      - name: 'Deploy: Wait for Render Deployment'
+        uses: bounceapp/render-action@0.6.0
+        with:
+          render-token: ${{ secrets.RENDER_API_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          service-id: srv-choh7lak728ivvt00tqg # homol
+          retries: 20
+          wait: 16000
+          sleep: 30000
+
+      # !SECTION ---------------------------------------------------------------
+      # SECTION: Notificy Stakeholders
+
+      - name: 'Notify: Send Nodemailer'
+        uses: bingblue/send-nodemailer@v1.0.8
+        with:
+          host: smtp.gmail.com
+          port: 465
+          secure: true
+          user: ${{ secrets.EMAIL_USERNAME }}
+          pass: ${{ secrets.EMAIL_PASSWORD }}
+          from: ${{ secrets.EMAIL_USERNAME }}
+          to: ${{ secrets.EMAIL_STAKEHOLDERS }}
+          subject: "Deployed eds2-ac2-tarefa-4 (HML) to Render"
+          text: "Deployed eds2-ac2-tarefa-4 (HML) to Render successfully"
+
+      # !SECTION ---------------------------------------------------------------

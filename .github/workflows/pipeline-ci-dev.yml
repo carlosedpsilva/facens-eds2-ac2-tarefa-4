@@ -1,0 +1,126 @@
+name: pipeline-ci-dev
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  build:
+    permissions: write-all
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        java-version: [11]
+
+    steps:
+      # ------------------------------------------------------------------------
+      # SECTION: Set-up, Build and Analyze steps
+
+      # Checkout the repo
+      - name: 'Set-up: Checkout'
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      # Setup JDK 11
+      - name: 'Set-up: JDK ${{ matrix.java-version }}'
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: "adopt"
+
+      # SonarCloud
+      - name: 'Set-up: Cache SonarCloud packages'
+        uses: actions/cache@v3
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      # Maven
+      - name: 'Set-up: Cache Maven packages'
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      # Build
+      - name: 'SonarCloud: Build and analyze'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}  -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+
+      # Check SonarCloud status
+      # - name: 'Sonarcloud: Check status'
+      #   uses: sonarcloud-actions/sonarcloud-check-status-action@v1
+      #   with:
+      #     org: Lojinho
+
+      # !SECTION ---------------------------------------------------------------
+      # SECTION: Docker steps
+
+      # Docker Login
+      - name: 'Docker: Login'
+        uses: docker/login-action@v2.1.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Docker Setup QEMU
+      - name: 'Docker: Setup QEMU'
+        uses: docker/setup-qemu-action@v2.1.0
+
+      - name: 'Docker: Setup Buildx'
+        uses: docker/setup-buildx-action@v2.5.0
+
+      # Docker Build
+      - name: 'Docker: Build and push Docker images'
+        uses: docker/build-push-action@v4.0.0
+        with:
+          push: true
+          tags: |
+            vaaaarlos/facens-eds2-ac2-tarefa-4-dev:latest
+            vaaaarlos/facens-eds2-ac2-tarefa-4-dev:${{ github.sha }}
+
+      # !SECTION ---------------------------------------------------------------
+      # SECTION: Deploy (Using Dockerfile)
+
+      # Deploy to Render
+      - name: 'Deploy: Render Deploy'
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: srv-chof6vr3cv2c4r5j18u0 # dev
+          api-key: ${{ secrets.RENDER_API_KEY }}
+
+      # Wait for Render Deployment
+      - name: 'Deploy: Wait for Render Deployment'
+        uses: bounceapp/render-action@0.6.0
+        with:
+          render-token: ${{ secrets.RENDER_API_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          service-id: srv-chof6vr3cv2c4r5j18u0 # dev
+          retries: 20
+          wait: 16000
+          sleep: 30000
+
+      # !SECTION ---------------------------------------------------------------
+      # SECTION: Notificy Stakeholders
+
+      - name: 'Notify: Send Nodemailer'
+        uses: bingblue/send-nodemailer@v1.0.8
+        with:
+          host: smtp.gmail.com
+          port: 465
+          secure: true
+          user: ${{ secrets.EMAIL_USERNAME }}
+          pass: ${{ secrets.EMAIL_PASSWORD }}
+          from: ${{ secrets.EMAIL_USERNAME }}
+          to: ${{ secrets.EMAIL_STAKEHOLDERS }}
+          subject: "Deployed eds2-ac2-tarefa-4 (DEV) to Render"
+          text: "Deployed eds2-ac2-tarefa-4 (DEV) to Render successfully"
+
+      # !SECTION ---------------------------------------------------------------

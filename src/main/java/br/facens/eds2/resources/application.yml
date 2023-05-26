@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: eds2-ac2-tarefa-4
+  profiles:
+    active: ${ENVIRONMENT}
+
+server:
+  port: 8080
+  servlet:
+    context-path: /eds2-ac2-tarefa-4
+
+management:
+  info:
+    git:
+      mode: full
+    build:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+info:
+  app:
+    version: "@project.version@"
+    name: "@project.name@"
+    encoding: "@project.build.sourceEncoding@"
+    java:
+      version: "@java.version@"
+    description: "@project.description@"
