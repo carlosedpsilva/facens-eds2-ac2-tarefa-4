@@ -55,10 +55,10 @@ jobs:
         run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}  -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
 
       # Check SonarCloud status
-      # - name: 'Sonarcloud: Check status'
-      #   uses: sonarcloud-actions/sonarcloud-check-status-action@v1
-      #   with:
-      #     org: Lojinho
+      - name: 'Sonarcloud: Check status'
+        uses: sonarcloud-actions/sonarcloud-check-status-action@v1
+        with:
+          org: Lojinho
 
       # !SECTION ---------------------------------------------------------------
       # SECTION: Docker steps
